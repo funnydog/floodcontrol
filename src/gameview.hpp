@@ -17,8 +17,13 @@ public:
 private:
 	static int determineScore(int squareCount);
 	void checkScoringChain(const std::vector<glm::ivec2> &waterChain);
-
 	void handleMouseInput(double mx, double my, unsigned mb);
+
+	void drawEmptyPipe(RenderTarget &target, glm::vec2 pos);
+	void drawStandardPipe(RenderTarget &target, glm::vec2 pos, const Pipe &pipe);
+	void drawFallingPipe(RenderTarget &target, glm::vec2 pos, const FallingPipe &pipe);
+	void drawRotatingPipe(RenderTarget &target, glm::vec2 pos, const RotatingPipe &pipe);
+	void drawFadingPipe(RenderTarget &target, glm::vec2 pos, const FadingPipe &pipe);
 
 private:
 	ViewStack &mViewStack;

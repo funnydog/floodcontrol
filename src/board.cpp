@@ -49,16 +49,16 @@ Board::getSourceRect(int x, int y) const
 	return getPipe(x, y).getSourceRect();
 }
 
-Pipe::Type
-Board::getPipeType(int x, int y) const
-{
-	return getPipe(x, y).getType();
-}
-
 bool
 Board::hasConnector(int x, int y, Pipe::Direction dir) const
 {
 	return getPipe(x, y).hasConnector(dir);
+}
+
+Pipe::Type
+Board::getType(int x, int y) const
+{
+	return getPipe(x, y).getType();
 }
 
 void
@@ -83,11 +83,12 @@ Board::fillFromAbove(int x, int y)
 	int rowLookup = y - 1;
 	while (rowLookup >= 0)
 	{
-		auto type = getPipeType(x, rowLookup);
+		auto type = getType(x, rowLookup);
 		if (type != Pipe::Empty)
 		{
 			setType(x, y, type);
 			setType(x, rowLookup, Pipe::Empty);
+			addFallingPipe(x, y, getType(x, y), Pipe::PipeHeight * ( y - rowLookup));
 			rowLookup = -1;
 		}
 		rowLookup--;
@@ -103,7 +104,7 @@ Board::makeNewPipes(bool dropPipes)
 		{
 			for (int y = BoardHeight - 1; y >= 0; y--)
 			{
-				if (getPipeType(x, y) == Pipe::Empty)
+				if (getType(x, y) == Pipe::Empty)
 				{
 					fillFromAbove(x, y);
 				}
@@ -114,9 +115,10 @@ Board::makeNewPipes(bool dropPipes)
 	{
 		for (int x = 0; x < BoardWidth; x++)
 		{
-			if (getPipeType(x, y) == Pipe::Empty)
+			if (getType(x, y) == Pipe::Empty)
 			{
 				randomizePipe(x, y);
+				addFallingPipe(x, y, getType(x, y), Pipe::PipeHeight * BoardHeight);
 			}
 		}
 	}
@@ -181,4 +183,98 @@ Board::getWaterChain(int y)
 	propagateWater(0, y, Pipe::Left);
 
 	return mWaterTracker;
+}
+
+bool
+Board::arePipesAnimating() const
+{
+	return !mFallingPipes.empty()
+		|| !mRotatingPipes.empty()
+		|| !mFadingPipes.empty();
+}
+
+void
+Board::updateAnimatedPipes()
+{
+	if (mFadingPipes.empty())
+	{
+		updateFallingPipes();
+		updateRotatingPipes();
+	}
+	else
+	{
+		updateFadingPipes();
+	}
+}
+
+void
+Board::addFallingPipe(int x, int y, Pipe::Type type, int verticalOffset)
+{
+	mFallingPipes[std::pair(x, y)] = std::make_unique<FallingPipe>(type, verticalOffset);
+}
+
+void
+Board::addRotatingPipe(int x, int y, Pipe::Type type, bool clockwise)
+{
+	mRotatingPipes[std::pair(x, y)] = std::make_unique<RotatingPipe>(type, clockwise);
+}
+
+void
+Board::addFadingPipe(int x, int y, Pipe::Type type)
+{
+	mFadingPipes[std::pair(x, y)] = std::make_unique<FadingPipe>(type, true);
+}
+
+void
+Board::updateFallingPipes()
+{
+	for (auto it = mFallingPipes.begin(), end = mFallingPipes.end();
+	     it != end;)
+	{
+		it->second->update(0.f);
+		if (it->second->getVerticalOffset() == 0)
+		{
+			it = mFallingPipes.erase(it);
+		}
+		else
+		{
+			++it;
+		}
+	}
+}
+
+void
+Board::updateRotatingPipes()
+{
+	for (auto it = mRotatingPipes.begin(), end = mRotatingPipes.end();
+	     it != end;)
+	{
+		it->second->update(0.f);
+		if (it->second->getTicksRemaining() == 0)
+		{
+			it = mRotatingPipes.erase(it);
+		}
+		else
+		{
+			++it;
+		}
+	}
+}
+
+void
+Board::updateFadingPipes()
+{
+	for (auto it = mFadingPipes.begin(), end = mFadingPipes.end();
+	     it != end;)
+	{
+		it->second->update(0.f);
+		if (it->second->getAlphaLevel() == 0.f)
+		{
+			it = mFadingPipes.erase(it);
+		}
+		else
+		{
+			++it;
+		}
+	}
 }

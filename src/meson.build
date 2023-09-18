@@ -22,6 +22,9 @@ srcs = [
   'titleview.cpp',
   'gameview.cpp',
   'pipe.cpp',
+  'fallingpipe.cpp',
+  'rotatingpipe.cpp',
+  'fadingpipe.cpp',
   'board.cpp',
 
   # graphics

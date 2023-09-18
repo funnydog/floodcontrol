@@ -18,9 +18,9 @@ static const int texturePaddingX = 1;
 static const int texturePaddingY = 1;
 }
 
-Pipe::Pipe()
-	: mType(Empty)
-	, mFilled(false)
+Pipe::Pipe(Type type, bool filled)
+	: mType(type)
+	, mFilled(filled)
 {
 }
 

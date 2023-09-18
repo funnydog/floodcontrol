@@ -27,7 +27,7 @@ public:
 		Empty,
 	};
 public:
-	Pipe();
+	explicit Pipe(Type type = Empty, bool filled = false);
 
 	Type getType() const;
 	void setType(Type type);
