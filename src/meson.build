@@ -27,6 +27,7 @@ srcs = [
   'fadingpipe.cpp',
   'board.cpp',
   'scorezoom.cpp',
+  'gameoverview.cpp',
 
   # graphics
   'camera.cpp',

@@ -5,6 +5,7 @@ enum class ViewID
 	None,
 	Title,
 	GamePlay,
+	GameOver,
 };
 
 enum class FontID
