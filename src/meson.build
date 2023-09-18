@@ -28,6 +28,7 @@ srcs = [
   'board.cpp',
   'scorezoom.cpp',
   'gameoverview.cpp',
+  'pauseview.cpp',
 
   # graphics
   'camera.cpp',

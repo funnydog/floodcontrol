@@ -1,5 +1,6 @@
 #include <iostream>
 
+#include <GLFW/glfw3.h>
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "gameview.hpp"
@@ -110,8 +111,14 @@ GameView::updateScoreZooms(float dt)
 }
 
 bool
-GameView::handleEvent(const Event &)
+GameView::handleEvent(const Event &event)
 {
+	if (const auto ep(std::get_if<KeyPressed>(&event)); ep
+	    && ep->key == GLFW_KEY_P)
+	{
+		mViewStack.pushView(ViewID::Paused);
+		return true;
+	}
 	return false;
 }
 
