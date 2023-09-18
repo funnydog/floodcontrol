@@ -3,6 +3,8 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include "gameview.hpp"
+
+#include "font.hpp"
 #include "rendertarget.hpp"
 #include "resourceholder.hpp"
 #include "texture.hpp"
@@ -12,6 +14,7 @@ namespace
 {
 
 static const glm::vec2 BoardOrigin(70.f, 89.f);
+static const glm::vec2 ScorePosition(605.f, 215.f);
 static const float MinTimeSinceLastInput = 0.25f;
 
 }
@@ -55,7 +58,6 @@ GameView::update(float dt)
 			checkScoringChain(mBoard.getWaterChain(y));
 		}
 		mBoard.makeNewPipes(true);
-		mContext.window->setTitle("FloodControl - Score: " + std::to_string(mPlayerScore));
 	}
 
 	return true;
@@ -121,6 +123,12 @@ GameView::render(RenderTarget &target)
 			}
 		}
 	}
+
+	mContext.fonts->get(FontID::Pericles36).draw(
+		target,
+		ScorePosition,
+		std::to_string(mPlayerScore),
+		Color::Black);
 
 	target.draw();
 }

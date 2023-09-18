@@ -9,9 +9,7 @@ enum class ViewID
 
 enum class FontID
 {
-	Title,
-	Subtitle,
-	Body,
+	Pericles36,
 };
 
 enum class TextureID

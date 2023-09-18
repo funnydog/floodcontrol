@@ -44,7 +44,6 @@ Application::Application()
 	// with a context in use we load the assets
 	loadAssets();
 
-
 	registerViews();
 
 	// push the first view
@@ -60,6 +59,8 @@ Application::~Application()
 void
 Application::loadAssets()
 {
+	mFonts.load(FontID::Pericles36, "assets/fonts/Peric.ttf", 36);
+
 	mTextures.load(TextureID::Background, "assets/textures/background.png");
 	mTextures.load(TextureID::TileSheet, "assets/textures/tile_sheet.png");
 	mTextures.load(TextureID::TitleScreen, "assets/textures/title_screen.png");
