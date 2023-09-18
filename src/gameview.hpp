@@ -1,8 +1,12 @@
 #pragma once
 
+#include <vector>
+#include <memory>
+
 #include "view.hpp"
 #include "viewstack.hpp"
 #include "board.hpp"
+#include "scorezoom.hpp"
 
 class GameView: public View
 {
@@ -18,6 +22,8 @@ private:
 	static int determineScore(int squareCount);
 	void checkScoringChain(const std::vector<glm::ivec2> &waterChain);
 	void handleMouseInput(double mx, double my, unsigned mb);
+
+	void updateScoreZooms(float dt);
 
 	void drawEmptyPipe(RenderTarget &target, glm::vec2 pos);
 	void drawStandardPipe(RenderTarget &target, glm::vec2 pos, const Pipe &pipe);
@@ -36,4 +42,6 @@ private:
 	Board mBoard;
 	int mPlayerScore;
 	float mTimeSinceLastInput;
+
+	std::vector<ScoreZoom> mScoreZooms;
 };

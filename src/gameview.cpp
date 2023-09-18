@@ -60,7 +60,27 @@ GameView::update(float dt)
 		mBoard.makeNewPipes(true);
 	}
 
+	updateScoreZooms(dt);
+
 	return true;
+}
+
+void
+GameView::updateScoreZooms(float dt)
+{
+	for (auto it = mScoreZooms.begin();
+	     it != mScoreZooms.end();)
+	{
+		it->update(dt);
+		if (it->isCompleted())
+		{
+			it = mScoreZooms.erase(it);
+		}
+		else
+		{
+			++it;
+		}
+	}
 }
 
 bool
@@ -124,11 +144,27 @@ GameView::render(RenderTarget &target)
 		}
 	}
 
-	mContext.fonts->get(FontID::Pericles36).draw(
+	auto &font = mContext.fonts->get(FontID::Pericles36);
+	font.draw(
 		target,
 		ScorePosition,
 		std::to_string(mPlayerScore),
 		Color::Black);
+
+        auto winCenter = glm::vec3(mContext.window->getSize(), 0.f) * 0.5f;
+	for (auto& scoreZoom: mScoreZooms)
+	{
+		auto textSize = font.getSize(scoreZoom.text);
+		auto scale = scoreZoom.getScale();
+		glm::mat4 mat4 = glm::translate(
+			glm::scale(
+				glm::translate(
+					glm::mat4(1.f),
+					winCenter),
+				glm::vec3(scale, scale, 1.f)),
+			glm::vec3(textSize * -0.5f, 0.f));
+		font.draw(target, mat4, scoreZoom.text, scoreZoom.drawColor);
+	}
 
 	target.draw();
 }
@@ -298,7 +334,12 @@ GameView::checkScoringChain(const std::vector<glm::ivec2> &waterChain)
 		return;
 	}
 
-	mPlayerScore += determineScore(waterChain.size());
+	auto score = determineScore(waterChain.size());
+	mScoreZooms.emplace_back(
+		std::to_string(score),
+		Color(255, 0, 0, 102));
+
+	mPlayerScore += score;
 	for (auto pos: waterChain)
 	{
 		mBoard.addFadingPipe(pos.x, pos.y, mBoard.getType(pos.x, pos.y));

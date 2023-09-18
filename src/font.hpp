@@ -24,6 +24,8 @@ public:
 
 	void draw(RenderTarget &target, glm::vec2 position,
 		  const std::string &text, Color color) const;
+	void draw(RenderTarget &target, const glm::mat4 &transform,
+		  const std::string &text, Color color) const;
 
 	glm::vec2 getSize(const std::string &text) const;
 
