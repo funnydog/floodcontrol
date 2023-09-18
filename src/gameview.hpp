@@ -31,6 +31,8 @@ private:
 	void drawRotatingPipe(RenderTarget &target, glm::vec2 pos, const RotatingPipe &pipe);
 	void drawFadingPipe(RenderTarget &target, glm::vec2 pos, const FadingPipe &pipe);
 
+	void startNewLevel();
+
 private:
 	ViewStack &mViewStack;
 	const Context &mContext;
@@ -42,6 +44,13 @@ private:
 	Board mBoard;
 	int mPlayerScore;
 	float mTimeSinceLastInput;
+
+	float mTimeSinceLastIncrease;
+	float mFloodCount;
+	float mFloodIncreaseAmount;
+
+	int mCurrentLevel;
+	int mLinesCompleted;
 
 	std::vector<ScoreZoom> mScoreZooms;
 };

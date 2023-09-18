@@ -17,6 +17,16 @@ static const glm::vec2 BoardOrigin(70.f, 89.f);
 static const glm::vec2 ScorePosition(605.f, 215.f);
 static const float MinTimeSinceLastInput = 0.25f;
 
+static const glm::vec2 WaterPosition(478.f, 338.f);
+static const glm::vec2 WaterSize(244.f, 297.f);
+static const glm::vec2 WaterOverlayStart(85.f, 245.f);
+
+static const float MaxFloodCounter = 100.f;
+static const float TimeBetweenFloodIncreases = 1.f;
+
+static const float FloodAccelerationPerLevel = 0.5f;
+static const glm::vec2 LevelPosition(512.f, 215.f);
+
 }
 
 GameView::GameView(ViewStack &stack, const Context &context)
@@ -29,6 +39,11 @@ GameView::GameView(ViewStack &stack, const Context &context)
 	, mBoard()
 	, mPlayerScore(0)
 	, mTimeSinceLastInput(0.f)
+	, mTimeSinceLastIncrease(0.f)
+	, mFloodCount(0.f)
+	, mFloodIncreaseAmount(0.5f)
+	, mCurrentLevel(0)
+	, mLinesCompleted(0)
 {
 	mEmptyPipe.pos /= mTileSheetSize;
 	mEmptyPipe.size /= mTileSheetSize;
@@ -38,6 +53,17 @@ bool
 GameView::update(float dt)
 {
 	mTimeSinceLastInput += dt;
+	mTimeSinceLastIncrease += dt;
+	if (mTimeSinceLastIncrease >= TimeBetweenFloodIncreases)
+	{
+		mTimeSinceLastIncrease -= TimeBetweenFloodIncreases;
+		mFloodCount += mFloodIncreaseAmount;
+		if (mFloodCount > MaxFloodCounter)
+		{
+			mViewStack.pushView(ViewID::GameOver);
+		}
+	}
+
 	if (mBoard.arePipesAnimating())
 	{
 		mBoard.updateAnimatedPipes();
@@ -144,13 +170,22 @@ GameView::render(RenderTarget &target)
 		}
 	}
 
+	// level
 	auto &font = mContext.fonts->get(FontID::Pericles36);
+	font.draw(
+		target,
+		LevelPosition,
+		std::to_string(mCurrentLevel),
+		Color::Black);
+
+	// points
 	font.draw(
 		target,
 		ScorePosition,
 		std::to_string(mPlayerScore),
 		Color::Black);
 
+	// scorezoom
         auto winCenter = glm::vec3(mContext.window->getSize(), 0.f) * 0.5f;
 	for (auto& scoreZoom: mScoreZooms)
 	{
@@ -164,6 +199,34 @@ GameView::render(RenderTarget &target)
 				glm::vec3(scale, scale, 1.f)),
 			glm::vec3(textSize * -0.5f, 0.f));
 		font.draw(target, mat4, scoreZoom.text, scoreZoom.drawColor);
+	}
+
+	// flood
+	glm::vec2 bgSize = mBackground.getSize();
+
+	float waterHeight = 244.f * mFloodCount / 100;
+	FloatRect srcRect = {
+		{ 85.f, 245.f + 244.f - waterHeight },
+		{ 297.f, waterHeight },
+	};
+
+	FloatRect dstRect = {
+		{ 478.f, 338.f + 244.f - waterHeight },
+		srcRect.size
+	};
+
+	srcRect.pos /= bgSize;
+	srcRect.size /= bgSize;
+
+	target.setTexture(&mBackground);
+	base = target.getPrimIndex(6, 4);
+	target.addIndices(base, indices + 0, indices + 6);
+	vertices = target.getVertexArray(4);
+	for (int i = 0; i < 4; i++)
+	{
+		vertices[i].pos = units[i] * dstRect.size + dstRect.pos;
+		vertices[i].uv = units[i] * srcRect.size + srcRect.pos;
+		vertices[i].color = Color(255,255,255,180);
 	}
 
 	target.draw();
@@ -340,6 +403,18 @@ GameView::checkScoringChain(const std::vector<glm::ivec2> &waterChain)
 		Color(255, 0, 0, 102));
 
 	mPlayerScore += score;
+	mFloodCount -= score / 10.f;
+	if (mFloodCount < 0.f)
+	{
+		mFloodCount = 0.f;
+	}
+
+	mLinesCompleted++;
+	if (mLinesCompleted >= 10)
+	{
+		startNewLevel();
+	}
+
 	for (auto pos: waterChain)
 	{
 		mBoard.addFadingPipe(pos.x, pos.y, mBoard.getType(pos.x, pos.y));
@@ -368,4 +443,15 @@ GameView::handleMouseInput(double mx, double my, unsigned mb)
 			mTimeSinceLastInput = 0.f;
 		}
 	}
+}
+
+void
+GameView::startNewLevel()
+{
+	mCurrentLevel++;
+	mLinesCompleted = 0;
+	mFloodCount = 0.f;
+	mFloodIncreaseAmount += FloodAccelerationPerLevel;
+	mBoard.clear();
+	mBoard.makeNewPipes(false);
 }
