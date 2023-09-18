@@ -3,10 +3,6 @@
 #include "board.hpp"
 #include "utility.hpp"
 
-namespace
-{
-}
-
 Board::Board()
 	: mPipes()
 {
