@@ -46,8 +46,6 @@ GameView::GameView(ViewStack &stack, const Context &context)
 	, mCurrentLevel(0)
 	, mLinesCompleted(0)
 {
-	mEmptyPipe.pos /= mTileSheetSize;
-	mEmptyPipe.size /= mTileSheetSize;
 }
 
 bool
@@ -128,24 +126,7 @@ GameView::render(RenderTarget &target)
 	target.clear(Color::Magenta);
 
 	// background
-	const glm::vec2 units[4] = {
-		{ 0.f, 0.f },
-		{ 0.f, 1.f },
-		{ 1.f, 0.f },
-		{ 1.f, 1.f },
-	};
-	const std::uint16_t indices[] = { 0, 1, 2, 1, 3, 2 };
-
-	target.setTexture(&mBackground);
-	auto base = target.getPrimIndex(6, 4);
-	target.addIndices(base, indices + 0, indices + 6);
-	auto vertices = target.getVertexArray(4);
-	for (int i = 0; i < 4; i++)
-	{
-		vertices[i].pos = units[i] * mBackground.getSize();
-		vertices[i].uv = units[i];
-		vertices[i].color = Color::White;
-	}
+	target.blit(mBackground, nullptr, {0.f, 0.f}, Color::White);
 
 	const glm::vec2 pipeSize(Pipe::PipeWidth, Pipe::PipeHeight);
 	target.setTexture(&mTileSheet);
@@ -194,7 +175,7 @@ GameView::render(RenderTarget &target)
 
 	// scorezoom
         auto winCenter = glm::vec3(mContext.window->getSize(), 0.f) * 0.5f;
-	for (auto& scoreZoom: mScoreZooms)
+	for (auto &scoreZoom: mScoreZooms)
 	{
 		auto textSize = font.getSize(scoreZoom.text);
 		auto scale = scoreZoom.getScale();
@@ -209,8 +190,6 @@ GameView::render(RenderTarget &target)
 	}
 
 	// flood
-	glm::vec2 bgSize = mBackground.getSize();
-
 	float waterHeight = 244.f * mFloodCount / 100;
 	FloatRect srcRect = {
 		{ 85.f, 245.f + 244.f - waterHeight },
@@ -222,19 +201,10 @@ GameView::render(RenderTarget &target)
 		srcRect.size
 	};
 
-	srcRect.pos /= bgSize;
-	srcRect.size /= bgSize;
-
-	target.setTexture(&mBackground);
-	base = target.getPrimIndex(6, 4);
-	target.addIndices(base, indices + 0, indices + 6);
-	vertices = target.getVertexArray(4);
-	for (int i = 0; i < 4; i++)
-	{
-		vertices[i].pos = units[i] * dstRect.size + dstRect.pos;
-		vertices[i].uv = units[i] * srcRect.size + srcRect.pos;
-		vertices[i].color = Color(255,255,255,180);
-	}
+	target.blit(mBackground,
+		    &srcRect,
+		    dstRect.pos,
+		    Color(255, 255, 255, 180));
 
 	target.draw();
 }
@@ -242,145 +212,50 @@ GameView::render(RenderTarget &target)
 void
 GameView::drawEmptyPipe(RenderTarget &target, glm::vec2 pos)
 {
-	const glm::vec2 units[4] = {
-		{ 0.f, 0.f },
-		{ 0.f, 1.f },
-		{ 1.f, 0.f },
-		{ 1.f, 1.f },
-	};
-	const std::uint16_t indices[] = { 0, 1, 2, 1, 3, 2 };
-	const glm::vec2 pipeSize(Pipe::PipeWidth, Pipe::PipeHeight);
-
-	auto base = target.getPrimIndex(6, 4);
-	target.addIndices(base, indices + 0, indices + 6);
-	auto vertices = target.getVertexArray(4);
-	for (int i = 0; i < 4; i++)
-	{
-		vertices[i].pos = units[i] * pipeSize + pos;
-		vertices[i].uv = units[i] * mEmptyPipe.size + mEmptyPipe.pos;
-		vertices[i].color = Color::White;
-	}
+	target.blit(mTileSheet, &mEmptyPipe, pos, Color::White);
 }
 
 void
 GameView::drawStandardPipe(RenderTarget &target, glm::vec2 pos, const Pipe &pipe)
 {
-	const glm::vec2 units[4] = {
-		{ 0.f, 0.f },
-		{ 0.f, 1.f },
-		{ 1.f, 0.f },
-		{ 1.f, 1.f },
-	};
-	const std::uint16_t indices[] = { 0, 1, 2, 1, 3, 2 };
-	const glm::vec2 pipeSize(Pipe::PipeWidth, Pipe::PipeHeight);
-
-	FloatRect srcRect = pipe.getSourceRect();
-	srcRect.pos /= mTileSheetSize;
-	srcRect.size /= mTileSheetSize;
-
-	auto base = target.getPrimIndex(6, 4);
-	target.addIndices(base, indices + 0, indices + 6);
-	auto vertices = target.getVertexArray(4);
-	for (int i = 0; i < 4; i++)
-	{
-		vertices[i].pos = units[i] * pipeSize + pos;
-		vertices[i].uv = units[i] * srcRect.size + srcRect.pos;
-		vertices[i].color = Color::White;
-	}
+	auto srcRect = pipe.getSourceRect();
+	target.blit(mTileSheet, &srcRect, pos, Color::White);
 }
 
 void
 GameView::drawFallingPipe(RenderTarget &target, glm::vec2 pos, const FallingPipe &pipe)
 {
-	const glm::vec2 units[4] = {
-		{ 0.f, 0.f },
-		{ 0.f, 1.f },
-		{ 1.f, 0.f },
-		{ 1.f, 1.f },
-	};
-	const std::uint16_t indices[] = { 0, 1, 2, 1, 3, 2 };
-	const glm::vec2 pipeSize(Pipe::PipeWidth, Pipe::PipeHeight);
-
-	pos.y -= pipe.getVerticalOffset();
-
-	FloatRect srcRect = pipe.getSourceRect();
-	srcRect.pos /= mTileSheetSize;
-	srcRect.size /= mTileSheetSize;
-
-	auto base = target.getPrimIndex(6, 4);
-	target.addIndices(base, indices + 0, indices + 6);
-	auto vertices = target.getVertexArray(4);
-	for (int i = 0; i < 4; i++)
-	{
-		vertices[i].pos = units[i] * pipeSize + pos;
-		vertices[i].uv = units[i] * srcRect.size + srcRect.pos;
-		vertices[i].color = Color::White;
-	}
+	auto srcRect = pipe.getSourceRect();
+	target.blit(
+		mTileSheet,
+		&srcRect,
+		{pos.x, pos.y - pipe.getVerticalOffset()},
+		Color::White);
 }
 
 void
 GameView::drawFadingPipe(RenderTarget &target, glm::vec2 pos, const FadingPipe &pipe)
 {
-	const glm::vec2 units[4] = {
-		{ 0.f, 0.f },
-		{ 0.f, 1.f },
-		{ 1.f, 0.f },
-		{ 1.f, 1.f },
-	};
-	const std::uint16_t indices[] = { 0, 1, 2, 1, 3, 2 };
-	const glm::vec2 pipeSize(Pipe::PipeWidth, Pipe::PipeHeight);
-
-
-	FloatRect srcRect = pipe.getSourceRect();
-	srcRect.pos /= mTileSheetSize;
-	srcRect.size /= mTileSheetSize;
-
-	Color color(255, 255, 255, 255.f * pipe.getAlphaLevel());
-	auto base = target.getPrimIndex(6, 4);
-	target.addIndices(base, indices + 0, indices + 6);
-	auto vertices = target.getVertexArray(4);
-	for (int i = 0; i < 4; i++)
-	{
-		vertices[i].pos = units[i] * pipeSize + pos;
-		vertices[i].uv = units[i] * srcRect.size + srcRect.pos;
-		vertices[i].color = color;
-	}
+	auto srcRect = pipe.getSourceRect();
+	target.blit(
+		mTileSheet,
+		&srcRect,
+		pos,
+		Color(255, 255, 255, 255.f * pipe.getAlphaLevel()));
 }
 
 void
 GameView::drawRotatingPipe(RenderTarget &target, glm::vec2 pos, const RotatingPipe &pipe)
 {
-	const glm::vec2 units[4] = {
-		{ 0.f, 0.f },
-		{ 0.f, 1.f },
-		{ 1.f, 0.f },
-		{ 1.f, 1.f },
-	};
-	const std::uint16_t indices[] = { 0, 1, 2, 1, 3, 2 };
-	const glm::vec2 pipeSize(Pipe::PipeWidth, Pipe::PipeHeight);
-
-	auto mat4 = glm::translate(
-		glm::rotate(
-			glm::translate(
-				glm::mat4(1.f),
-				glm::vec3(pipeSize * .5f, 0.f)),
-			pipe.getRotation(),
-			glm::vec3(0.f, 0.f, -1.f)),
-		glm::vec3(pipeSize * -.5f, 0.f));
-
-	FloatRect srcRect = pipe.getSourceRect();
-	srcRect.pos /= mTileSheetSize;
-	srcRect.size /= mTileSheetSize;
-
-	auto base = target.getPrimIndex(6, 4);
-	target.addIndices(base, indices + 0, indices + 6);
-	auto vertices = target.getVertexArray(4);
-	for (int i = 0; i < 4; i++)
-	{
-		vertices[i].pos = glm::vec2(mat4 * glm::vec4(units[i] * pipeSize, 0.f, 1.f)) + pos;
-		vertices[i].uv = units[i] * srcRect.size + srcRect.pos;
-		vertices[i].color = Color::White;
-	}
+	auto srcRect = pipe.getSourceRect();
+	target.blit(
+		mTileSheet,
+		&srcRect,
+		pos,
+		Color::White,
+		pipe.getRotation(),
+		glm::vec2(Pipe::PipeWidth, Pipe::PipeHeight) * 0.5f,
+		1.f);
 }
 
 int

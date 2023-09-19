@@ -90,6 +90,22 @@ public:
 	Vertex* getVertexArray(unsigned vtxCount);
 
 	/**
+	 * Blit the texture.
+	 */
+	void blit(const Texture &texture,
+		  const FloatRect *srcRect,
+		  glm::vec2 dst,
+		  Color color);
+
+	void blit(const Texture &texture,
+		  const FloatRect *srcRect,
+		  glm::vec2 dst,
+		  Color color,
+		  float rotationAngle,
+		  glm::vec2 rotationCenter,
+		  float scale);
+
+	/**
 	 * Use the @window as a drawing backend.
 	 *
 	 * @param[in] window Window to use as a drawing backend.
