@@ -61,6 +61,7 @@ void
 Board::setType(int x, int y, Pipe::Type type)
 {
 	getPipe(x, y).setType(type);
+	getPipe(x, y).setFilled(false);
 }
 
 void
