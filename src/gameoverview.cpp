@@ -47,5 +47,4 @@ void
 GameOverView::render(RenderTarget &target)
 {
 	target.draw("G A M E  O V E R !", gameOverLocation, mFont, Color::Yellow);
-	target.draw();
 }

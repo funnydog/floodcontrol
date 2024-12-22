@@ -129,6 +129,24 @@ GameView::render(RenderTarget &target)
 
 	// background
 	target.draw(mBackground, glm::vec2(0.f), mBackground.getSize());
+	// flood level
+	glm::vec2 bgSize = mBackground.getSize();
+
+	float waterHeight = 244.f * mFloodCount / 100;
+	FloatRect srcRect = {
+		{ 85.f, 245.f + 244.f - waterHeight },
+		{ 297.f, waterHeight },
+	};
+
+	FloatRect dstRect = {
+		{ 478.f, 338.f + 244.f - waterHeight },
+		srcRect.size
+	};
+
+	// normalize the texture coordinates
+	srcRect.pos /= bgSize;
+	srcRect.size /= bgSize;
+	target.draw(srcRect, dstRect.pos, dstRect.size, Color(255,255,255,180));
 
 	// pipes
 	target.setTexture(&mTileSheet);
@@ -182,28 +200,6 @@ GameView::render(RenderTarget &target)
 			glm::vec3(textSize * -0.5f, 0.f));
 		target.draw(scoreZoom.text, mat4, font, scoreZoom.drawColor);
 	}
-
-	// flood
-	glm::vec2 bgSize = mBackground.getSize();
-
-	float waterHeight = 244.f * mFloodCount / 100;
-	FloatRect srcRect = {
-		{ 85.f, 245.f + 244.f - waterHeight },
-		{ 297.f, waterHeight },
-	};
-
-	FloatRect dstRect = {
-		{ 478.f, 338.f + 244.f - waterHeight },
-		srcRect.size
-	};
-
-	// normalize the texture coordinates
-	srcRect.pos /= bgSize;
-	srcRect.size /= bgSize;
-
-	target.setTexture(&mBackground);
-	target.draw(srcRect, dstRect.pos, dstRect.size, Color(255,255,255,180));
-	target.draw();
 }
 
 void

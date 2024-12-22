@@ -39,5 +39,4 @@ TitleView::render(RenderTarget &target)
 {
 	target.clear(Color::Black);
 	target.draw(mTexture, glm::vec2(0.f), mTextureSize);
-	target.draw();
 }

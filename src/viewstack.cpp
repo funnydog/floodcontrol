@@ -49,7 +49,10 @@ ViewStack::render(RenderTarget &target)
 {
 	for (auto &view: mStack)
 	{
+		target.beginRendering();
 		view->render(target);
+		target.endRendering();
+		target.draw();
 	}
 }
 

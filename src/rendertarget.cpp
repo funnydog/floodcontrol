@@ -22,11 +22,11 @@ static const glm::vec2 units[] = {
 }
 
 RenderTarget::RenderTarget()
-	: mIsBatching(false)
-	, mChannelList(nullptr)
-	, mChannelTail(&mChannelList)
-	, mCurrent(nullptr)
-	, mFreeChannels(nullptr)
+	: mTexture(nullptr)
+	, mVertexOffset(0)
+	, mVertexCount(0)
+	, mIndexOffset(0)
+	, mIndexCount(0)
 	, mVBO(0)
 	, mEBO(0)
 	, mVAO(0)
@@ -49,15 +49,6 @@ RenderTarget::~RenderTarget()
 	{
 		glCheck(glDeleteBuffers(1, &mVBO));
 	}
-
-	beginBatch();
-	DrawChannel *channel = mFreeChannels;
-	while (channel)
-	{
-		DrawChannel *next = channel->next;
-		delete channel;
-		channel = next;
-	}
 }
 
 void
@@ -77,14 +68,18 @@ RenderTarget::use(const Window &window)
 	mDefaultCamera.setSize(size);
 	mCamera = mDefaultCamera;
 
+	mShader.use();
+	mShader.getUniform("projection").setMatrix4(mCamera.getTransform());
+	mShader.getUniform("image").setInteger(0);
+
 	glCheck(glEnable(GL_CULL_FACE));
 	glCheck(glEnable(GL_BLEND));
 	glCheck(glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA));
 
         // VBO and EBO
+	glCheck(glGenBuffers(1, &mEBO));
 	glCheck(glGenBuffers(1, &mVBO));
 	glCheck(glBindBuffer(GL_ARRAY_BUFFER, mVBO));
-	glCheck(glGenBuffers(1, &mEBO));
 
 	// VAO
 	glCheck(glGenVertexArrays(1, &mVAO));
@@ -101,7 +96,7 @@ RenderTarget::use(const Window &window)
 	glCheck(glVertexAttribPointer(
 			2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(Vertex),
 			reinterpret_cast<GLvoid*>(offsetof(Vertex, color))));
-
+	glCheck(glBindVertexArray(0));
 }
 
 const Camera&
@@ -131,198 +126,93 @@ RenderTarget::clear(Color color)
 }
 
 void
-RenderTarget::addLayer()
+RenderTarget::beginRendering()
 {
-	// NOTE: by deleting the texture->channel association
-	// we force to build another set of channels.
-	mChannelMap.clear();
-}
-
-void
-RenderTarget::beginBatch()
-{
+	mBatches.clear();
 	mVertices.clear();
-	mChannelMap.clear();
-	*mChannelTail = mFreeChannels;
-	mFreeChannels = mChannelList;
-	mChannelList = mCurrent = nullptr;
-	mChannelTail = &mChannelList;
-}
-
-void
-RenderTarget::endBatch()
-{
 	mIndices.clear();
-	for (auto channel = mChannelList; channel; channel = channel->next)
-	{
-		channel->idxOffset = mIndices.size() * sizeof(std::uint16_t);
-		mIndices.insert(mIndices.end(),
-				channel->idxBuffer.begin(),
-				channel->idxBuffer.end());
-	}
+	mTexture = &mWhiteTexture;
+	mVertexOffset = mVertexCount = 0;
+	mIndexOffset = mIndexCount = 0;
 }
 
 void
-RenderTarget::draw()
+RenderTarget::newLayer()
 {
-	assert(mVAO && mVBO && mEBO && "OpenGL objects not initialized.");
-	const int textureUnit = 0;
-
-	if (!mChannelList)
-	{
-		return;
-	}
-
-	if (mIsBatching)
-	{
-		mIsBatching = false;
-		endBatch();
-	}
-
-	glCheck(glBindVertexArray(mVAO));
-
-	mShader.use();
-	mShader.getUniform("projection").setMatrix4(mCamera.getTransform());
-	mShader.getUniform("image").setInteger(0);
-
-	glCheck(glBindBuffer(GL_ARRAY_BUFFER, mVBO));
-	glCheck(glBufferData(GL_ARRAY_BUFFER,
-			     mVertices.size() * sizeof(mVertices[0]),
-			     mVertices.data(),
-			     GL_STREAM_DRAW));
-
-	glCheck(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mEBO));
-	glCheck(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
-			     mIndices.size() * sizeof(mIndices[0]),
-			     mIndices.data(),
-			     GL_STREAM_DRAW));
-
-	const Texture *currentTexture = nullptr;
-	for (auto channel = mChannelList; channel; channel = channel->next)
-	{
-		// skip empty channels
-		if (!channel->texture || channel->idxBuffer.empty())
-		{
-			continue;
-		}
-
-		// dont bind against the same texture
-		if (currentTexture != channel->texture)
-		{
-			currentTexture = channel->texture;
-			currentTexture->bind(textureUnit);
-		}
-
-		// draw
-		glCheck(glDrawElementsBaseVertex(
-				GL_TRIANGLES,
-				channel->idxBuffer.size(),
-				GL_UNSIGNED_SHORT,
-				reinterpret_cast<GLvoid*>(channel->idxOffset),
-				channel->vtxOffset));
-	}
-
-	glCheck(glBindVertexArray(0));
+	endRendering();
 }
 
-RenderTarget::DrawChannel *
-RenderTarget::newChannel(const Texture *texture, unsigned vtxOffset)
+void
+RenderTarget::endRendering()
 {
-	DrawChannel *channel;
-	if (mFreeChannels)
-	{
-		channel = mFreeChannels;
-		channel->idxBuffer.clear();
-		mFreeChannels = channel->next;
-	}
-	else
-	{
-		channel = new DrawChannel();
-	}
-
-	// channel initialization
-	channel->texture = texture;
-	channel->vtxOffset = vtxOffset;
-	channel->idxOffset = 0;
-	channel->next = nullptr;
-
-	// update the channel list
-	*mChannelTail = channel;
-	mChannelTail = &channel->next;
-
-	return channel;
+	mBatches.emplace_back(mTexture, mVertexOffset,
+	                      mIndexOffset*sizeof(mIndices[0]),
+	                      mIndexCount-mIndexOffset);
+	mVertexOffset = mVertexCount;
+	mIndexOffset = mIndexCount;
 }
 
 void
 RenderTarget::setTexture(const Texture *texture)
 {
-	// switch to batching state if needed
-	if (!mIsBatching)
-	{
-		mIsBatching = true;
-		beginBatch();
-	}
-
-	// the null texture means a white texture;
-	if (!texture)
+	if (texture == nullptr)
 	{
 		texture = &mWhiteTexture;
 	}
-
-	// return early if the texture is the same
-	if (mCurrent && mCurrent->texture == texture)
+	if (texture != mTexture && mIndexCount > mIndexOffset)
 	{
-		return;
+		endRendering();
 	}
-
-	// look for a channel with the same texture
-	if (auto it = mChannelMap.find(texture); it != mChannelMap.end())
-	{
-		// channel found
-		mCurrent = it->second;
-	}
-	else
-	{
-		// or add a new one
-		mCurrent = newChannel(texture, mVertices.size());
-		mChannelMap[texture] = mCurrent;
-	}
+	mTexture = texture;
 }
 
-std::uint16_t
-RenderTarget::getPrimIndex(unsigned idxCount, unsigned vtxCount)
+void
+RenderTarget::reserve(unsigned vcount, std::span<const std::uint16_t> indices)
 {
-	// ensure we have a current channel and the rendertarget is in
-	// batching state.
-	if (!mIsBatching)
+	auto base = mVertexCount - mVertexOffset;
+	if (base + vcount > UINT16_MAX)
 	{
-		mIsBatching = true;
-		beginBatch();
-		mCurrent = newChannel(&mWhiteTexture, 0);
+		endRendering();
+		base = 0;
 	}
-
-	// ensure we have enough space for the indices
-	unsigned index = mVertices.size() - mCurrent->vtxOffset;
-	if (index + vtxCount > UINT16_MAX)
+	mVertexCount += vcount;
+	for (auto i : indices)
 	{
-		mCurrent = newChannel(mCurrent->texture, mVertices.size());
-		mChannelMap[mCurrent->texture] = mCurrent;
-		index = 0;
+		mIndices.push_back(base + i);
 	}
-
-	// reserve the space for the vertices and the indices
-	mVertices.reserve(mVertices.size() + vtxCount);
-	mCurrent->idxBuffer.reserve(mCurrent->idxBuffer.size() + idxCount);
-
-	return index;
+	mIndexCount += indices.size();
 }
 
-Vertex*
-RenderTarget::getVertexArray(unsigned vtxCount)
+void
+RenderTarget::draw() const
 {
-	auto size = mVertices.size();
-	mVertices.resize(size + vtxCount);
-	return &mVertices[size];
+	mShader.use();
+
+	glCheck(glBindVertexArray(mVAO));
+	glCheck(glBindBuffer(GL_ARRAY_BUFFER, mVBO));
+	glCheck(glBufferData(GL_ARRAY_BUFFER,
+	                     mVertices.size() * sizeof(mVertices[0]),
+	                     mVertices.data(),
+	                     GL_STREAM_DRAW));
+
+	glCheck(glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, mEBO));
+	glCheck(glBufferData(GL_ELEMENT_ARRAY_BUFFER,
+	                     mIndices.size() * sizeof(mIndices[0]),
+	                     mIndices.data(),
+	                     GL_STREAM_DRAW));
+
+	for (const auto &batch : mBatches)
+	{
+		batch.texture->bind(0);
+		glCheck(glDrawElementsBaseVertex(
+			        GL_TRIANGLES,
+			        batch.indexCount,
+			        GL_UNSIGNED_SHORT,
+			        reinterpret_cast<GLvoid*>(batch.indexOffset),
+			        batch.vertexOffset));
+	}
+
+	glCheck(glBindVertexArray(0));
 }
 
 void
@@ -343,18 +233,18 @@ RenderTarget::draw(const std::string &text, glm::vec2 pos, Font &font, Color col
 	pos.y += font.getLineHeight();
 	for (auto codepoint : cv.from_bytes(text))
 	{
-		unsigned base = getPrimIndex(6, 4);
-		addIndices(base, indices+0, indices+6);
-		Vertex *vertices = getVertexArray(4);
+		reserve(4, indices);
 
 		const auto &glyph = font.getGlyph(codepoint);
 		pos.x += glyph.bearing.x;
 		pos.y -= glyph.bearing.y;
-		for (int i = 0; i < 4; i++)
+		for (auto unit : units)
 		{
-			vertices[i].pos = glyph.size * units[i] + pos;
-			vertices[i].uv = glyph.uvSize * units[i] + glyph.uvPos;
-			vertices[i].color = color;
+			Vertex v;
+			v.pos = glyph.size * unit + pos;
+			v.uv = glyph.uvSize * unit + glyph.uvPos;
+			v.color = color;
+			mVertices.push_back(v);
 		}
 		pos.x += glyph.advance - glyph.bearing.x;
 		pos.y += glyph.bearing.y;
@@ -381,19 +271,18 @@ RenderTarget::draw(const std::string &text, const glm::mat4 &transform, Font &fo
 	pos.y += font.getLineHeight();
 	for (auto codepoint : cv.from_bytes(text))
 	{
-		unsigned base = getPrimIndex(6, 4);
-		addIndices(base, indices+0, indices+6);
-		Vertex *vertices = getVertexArray(4);
-
+		reserve(4, indices);
 		const auto &glyph = font.getGlyph(codepoint);
 		pos.x += glyph.bearing.x;
 		pos.y -= glyph.bearing.y;
-		for (int i = 0; i < 4; i++)
+		for (auto unit : units)
 		{
-			vertices[i].pos = glm::vec2(
-				transform * glm::vec4(glyph.size * units[i] + pos, 0.f, 1.f));
-			vertices[i].uv = glyph.uvSize * units[i] + glyph.uvPos;
-			vertices[i].color = color;
+			Vertex v;
+			v.pos = glm::vec2(
+				transform * glm::vec4(glyph.size * unit + pos, 0.f, 1.f));
+			v.uv = glyph.uvSize * unit + glyph.uvPos;
+			v.color = color;
+			mVertices.push_back(v);
 		}
 		pos.x += glyph.advance - glyph.bearing.x;
 		pos.y += glyph.bearing.y;
@@ -404,57 +293,56 @@ void
 RenderTarget::draw(const Texture &texture, glm::vec2 pos, glm::vec2 size)
 {
 	setTexture(&texture);
-	auto base = getPrimIndex(6, 4);
-	addIndices(base, indices + 0, indices + 6);
-	auto vertices = getVertexArray(4);
-	for (int i = 0; i < 4; i++)
+	reserve(4, indices);
+	for (auto unit : units)
 	{
-		vertices[i].pos = units[i] * size + pos;
-		vertices[i].uv = units[i];
-		vertices[i].color = Color::White;
+		Vertex v;
+		v.pos = unit * size + pos;
+		v.uv = unit;
+		v.color = Color::White;
+		mVertices.push_back(v);
 	}
 }
 
 void
 RenderTarget::draw(glm::vec2 pos, glm::vec2 size, Color color)
 {
-	setTexture(nullptr);
-	auto base = getPrimIndex(6, 4);
-	addIndices(base, indices + 0, indices + 6);
-	auto vertices = getVertexArray(4);
-	for (int i = 0; i < 4; i++)
+	setTexture(&mWhiteTexture);
+	reserve(4, indices);
+	for (auto unit : units)
 	{
-		vertices[i].pos = units[i] * size + pos;
-		vertices[i].uv = units[i];
-		vertices[i].color = color;
+		Vertex v;
+		v.pos = unit * size + pos;
+		v.uv = unit;
+		v.color = color;
+		mVertices.push_back(v);
 	}
 }
 
 void
 RenderTarget::draw(const FloatRect &rect, glm::vec2 pos, glm::vec2 size, Color color)
 {
-	auto base = getPrimIndex(6, 4);
-	addIndices(base, indices + 0, indices + 6);
-	auto vertices = getVertexArray(4);
-	for (int i = 0; i < 4; i++)
+	reserve(4, indices);
+	for (auto unit : units)
 	{
-		vertices[i].pos = units[i] * size + pos;
-		vertices[i].uv = units[i] * rect.size + rect.pos;
-		vertices[i].color = color;
+		Vertex v;
+		v.pos = unit * size + pos;
+		v.uv = unit * rect.size + rect.pos;
+		v.color = color;
+		mVertices.push_back(v);
 	}
 }
 
 void
 RenderTarget::draw(const FloatRect &rect, const glm::mat4 &transform, glm::vec2 size, Color color)
 {
-	auto base = getPrimIndex(6, 4);
-	addIndices(base, indices + 0, indices + 6);
-	auto vertices = getVertexArray(4);
-	for (int i = 0; i < 4; i++)
+	reserve(4, indices);
+	for (auto unit : units)
 	{
-		vertices[i].pos = glm::vec2(
-			transform * glm::vec4(units[i] * size, 0.f, 1.f));
-		vertices[i].uv = units[i] * rect.size + rect.pos;
-		vertices[i].color = color;
+		Vertex v;
+		v.pos = glm::vec2(transform * glm::vec4(unit * size, 0.f, 1.f));
+		v.uv = unit * rect.size + rect.pos;
+		v.color = color;
+		mVertices.push_back(v);
 	}
 }

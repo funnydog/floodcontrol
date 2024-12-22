@@ -1,12 +1,12 @@
 #pragma once
 
+#include <span>
 #include <unordered_map>
 #include <vector>
 
 #include "color.hpp"
 #include "shader.hpp"
 #include "texture.hpp"
-#include "vertex.hpp"
 #include "camera.hpp"
 
 class Canvas;
@@ -47,54 +47,10 @@ public:
 	void clear(Color = Color::Black);
 
 	/**
-	 * Force a new draw command.
-	 */
-	void addLayer();
-
-	/**
-	 * Send the blob of vertices to the GPU.
-	 */
-	void draw();
-
-	/**
 	 * Set the texture for the next primitive.
 	 */
 	void setTexture(const Texture *texture);
 
-	/**
-	 * Get the base index for the primitive and reserve space in
-	 * the vertex and index buffers.
-	 */
-	std::uint16_t getPrimIndex(unsigned idxCount, unsigned vtxCount);
-
-	/**
-	 * Add a sequence of indices to the DrawChannel, with an
-	 * @offset applied to them. The offset is obtained by using
-	 * getPrimIndex().
-	 *
-	 * @param[in] offset offset to add to each index.
-	 * @param[in] start first iterator of the range.
-	 * @param[in] end end iterator of the range.
-	 */
-	template <typename Iterator>
-	void addIndices(std::uint16_t offset, Iterator start, Iterator end);
-
-	/**
-	 * Add a sequence of vertices to the DrawChannel.
-	 *
-	 * @param[in] start first iterator of the range.
-	 * @param[in] end end iterator of the range.
-	 */
-	template <typename Iterator>
-	void addVertices(Iterator start, Iterator end);
-
-	Vertex* getVertexArray(unsigned vtxCount);
-
-	/**
-	 * Use the @window as a drawing backend.
-	 *
-	 * @param[in] window Window to use as a drawing backend.
-	 */
 	void use(const Window &window);
 
 	void draw(const std::string &text, glm::vec2 pos, Font &font, Color color);
@@ -104,37 +60,44 @@ public:
 	void draw(const FloatRect &rect, const glm::mat4 &transform, glm::vec2 size, Color color=Color::White);
 	void draw(glm::vec2 pos, glm::vec2 size, Color color);
 
+	void beginRendering();
+	void newLayer();
+	void endRendering();
+	void draw() const;
+
 protected:
 	void initialize();
 
 private:
-	struct DrawChannel
-	{
-		const Texture *texture;
-		unsigned vtxOffset;
-		unsigned idxOffset;
-		std::vector<std::uint16_t> idxBuffer;
-		DrawChannel *next;
-	};
-
-private:
-	DrawChannel *newChannel(const Texture *texture, unsigned vtxOffset);
-	void beginBatch();
-	void endBatch();
-
+	void reserve(unsigned vcount, std::span<const std::uint16_t> indices);
 private:
 	Camera mDefaultCamera;
 	Camera mCamera;
 
-	std::vector<Vertex>        mVertices;
-	std::vector<std::uint16_t> mIndices;
-	std::unordered_map<const Texture *, DrawChannel*> mChannelMap;
+	struct Batch
+	{
+		const Texture *texture;
+		unsigned vertexOffset;
+		unsigned indexOffset;
+		unsigned indexCount;
+	};
 
-	bool          mIsBatching;
-	DrawChannel  *mChannelList;
-	DrawChannel **mChannelTail;
-	DrawChannel  *mCurrent;
-	DrawChannel  *mFreeChannels;
+	struct Vertex
+	{
+		glm::vec2 pos;
+		glm::vec2 uv;
+		std::uint32_t color;
+	};
+
+	std::vector<Batch> mBatches;
+	std::vector<Vertex> mVertices;
+	std::vector<std::uint16_t> mIndices;
+
+	const Texture *mTexture;
+	unsigned mVertexOffset;
+	unsigned mVertexCount;
+	unsigned mIndexOffset;
+	unsigned mIndexCount;
 
 	Texture       mWhiteTexture;
 	Shader        mShader;
@@ -142,20 +105,3 @@ private:
 	unsigned      mEBO;
 	unsigned      mVAO;
 };
-
-template <typename Iterator>
-void
-RenderTarget::addIndices(std::uint16_t offset, Iterator start, Iterator end)
-{
-	for (; start != end; ++start)
-	{
-		mCurrent->idxBuffer.push_back(offset + *start);
-	}
-}
-
-template <typename Iterator>
-void
-RenderTarget::addVertices(Iterator start, Iterator end)
-{
-	mVertices.insert(mVertices.end(), start, end);
-}
