@@ -1,16 +1,8 @@
-freetype2 = dependency('freetype2')
-glew = dependency('glew')
-glfw3 = dependency('glfw3')
-glm = dependency('glm')
-opengl = dependency('gl')
-
-deps = [
-  freetype2,
-  glew,
-  glfw3,
-  glm,
-  opengl,
-]
+deps = []
+deps += dependency('freetype2', required : true, fallback : ['freetype2', 'freetype_dep'])
+deps += dependency('glew', required : true, fallback : ['glew', 'glew_dep'])
+deps += dependency('glfw3', required : true, fallback : ['glfw', 'glfw_dep'])
+deps += dependency('glm', required : true, fallback : ['glm', 'glm_dep'])
 
 srcs = [
   # application
