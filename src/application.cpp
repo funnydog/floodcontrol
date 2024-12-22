@@ -12,10 +12,6 @@
 
 namespace
 {
-const std::uint64_t targetFPS = 60;
-const float SecondsPerFrame = 1.f / targetFPS;
-const int MaxStepsPerFrame = 5;
-
 const unsigned SCREEN_WIDTH = 800;
 const unsigned SCREEN_HEIGHT = 600;
 }
@@ -80,26 +76,16 @@ Application::registerViews()
 void
 Application::run()
 {
-	// game loop
-	const std::uint64_t deltaTicks = glfwGetTimerFrequency() / targetFPS;
-	std::uint64_t currentTicks = glfwGetTimerValue();
-	std::uint64_t accumulator = 0;
+	// variable-time game loop
+	auto currentTime = glfwGetTime();
 	while (!mWindow.isClosed() && !mViewStack.empty())
 	{
-		// update at constant frameTicks intervals
-		auto newTicks = glfwGetTimerValue();
-		accumulator += newTicks - currentTicks;
-		currentTicks = newTicks;
+		auto newTime = glfwGetTime();
+		auto frameTime = newTime - currentTime;
+		currentTime = newTime;
 
-		for (int steps = MaxStepsPerFrame;
-		     steps > 0 && accumulator >= deltaTicks;
-		     --steps, accumulator -= deltaTicks)
-		{
-			processInput();
-
-			// update the view
-			mViewStack.update(SecondsPerFrame);
-		}
+		processInput();
+		mViewStack.update(frameTime);
 
 		// render
 		mViewStack.render(mTarget);
