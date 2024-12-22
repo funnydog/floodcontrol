@@ -194,7 +194,7 @@ Shader::getUniform(const std::string &name) const
 }
 
 void
-Shader::bind() const
+Shader::use() const
 {
 	glCheck(glUseProgram(mProgram));
 }

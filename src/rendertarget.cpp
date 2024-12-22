@@ -168,7 +168,7 @@ RenderTarget::draw()
 
 	glCheck(glBindVertexArray(mVAO));
 
-	mShader.bind();
+	mShader.use();
 	mShader.getUniform("projection").setMatrix4(mCamera.getTransform());
 	mShader.getUniform("image").setInteger(0);
 

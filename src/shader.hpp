@@ -54,7 +54,7 @@ public:
 
 	ShaderUniform getUniform(const std::string &name) const;
 
-	void bind() const;
+	void use() const;
 
 private:
 	unsigned mProgram = 0;
