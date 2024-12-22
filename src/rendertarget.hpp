@@ -99,6 +99,10 @@ public:
 
 	void draw(const std::string &text, glm::vec2 pos, Font &font, Color color);
 	void draw(const std::string &text, const glm::mat4 &transform, Font &font, Color color);
+	void draw(const Texture &texture, glm::vec2 pos, glm::vec2 size);
+	void draw(const FloatRect &rect, glm::vec2 pos, glm::vec2 size, Color color=Color::White);
+	void draw(const FloatRect &rect, const glm::mat4 &transform, glm::vec2 size, Color color=Color::White);
+	void draw(glm::vec2 pos, glm::vec2 size, Color color);
 
 protected:
 	void initialize();

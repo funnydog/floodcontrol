@@ -38,24 +38,6 @@ void
 TitleView::render(RenderTarget &target)
 {
 	target.clear(Color::Black);
-
-	const glm::vec2 units[4] = {
-		{ 0.f, 0.f },
-		{ 0.f, 1.f },
-		{ 1.f, 0.f },
-		{ 1.f, 1.f },
-	};
-	const std::uint16_t indices[] = { 0, 1, 2, 1, 3, 2 };
-
-	target.setTexture(&mTexture);
-	auto base = target.getPrimIndex(6, 4);
-	target.addIndices(base, indices + 0, indices + 6);
-	auto vertices = target.getVertexArray(4);
-	for (int i = 0; i < 4; i++)
-	{
-		vertices[i].pos = units[i] * mTextureSize;
-		vertices[i].uv = units[i];
-		vertices[i].color = Color::White;
-	}
+	target.draw(mTexture, glm::vec2(0.f), mTextureSize);
 	target.draw();
 }

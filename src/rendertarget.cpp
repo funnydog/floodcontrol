@@ -399,3 +399,62 @@ RenderTarget::draw(const std::string &text, const glm::mat4 &transform, Font &fo
 		pos.y += glyph.bearing.y;
 	}
 }
+
+void
+RenderTarget::draw(const Texture &texture, glm::vec2 pos, glm::vec2 size)
+{
+	setTexture(&texture);
+	auto base = getPrimIndex(6, 4);
+	addIndices(base, indices + 0, indices + 6);
+	auto vertices = getVertexArray(4);
+	for (int i = 0; i < 4; i++)
+	{
+		vertices[i].pos = units[i] * size + pos;
+		vertices[i].uv = units[i];
+		vertices[i].color = Color::White;
+	}
+}
+
+void
+RenderTarget::draw(glm::vec2 pos, glm::vec2 size, Color color)
+{
+	setTexture(nullptr);
+	auto base = getPrimIndex(6, 4);
+	addIndices(base, indices + 0, indices + 6);
+	auto vertices = getVertexArray(4);
+	for (int i = 0; i < 4; i++)
+	{
+		vertices[i].pos = units[i] * size + pos;
+		vertices[i].uv = units[i];
+		vertices[i].color = color;
+	}
+}
+
+void
+RenderTarget::draw(const FloatRect &rect, glm::vec2 pos, glm::vec2 size, Color color)
+{
+	auto base = getPrimIndex(6, 4);
+	addIndices(base, indices + 0, indices + 6);
+	auto vertices = getVertexArray(4);
+	for (int i = 0; i < 4; i++)
+	{
+		vertices[i].pos = units[i] * size + pos;
+		vertices[i].uv = units[i] * rect.size + rect.pos;
+		vertices[i].color = color;
+	}
+}
+
+void
+RenderTarget::draw(const FloatRect &rect, const glm::mat4 &transform, glm::vec2 size, Color color)
+{
+	auto base = getPrimIndex(6, 4);
+	addIndices(base, indices + 0, indices + 6);
+	auto vertices = getVertexArray(4);
+	for (int i = 0; i < 4; i++)
+	{
+		vertices[i].pos = glm::vec2(
+			transform * glm::vec4(units[i] * size, 0.f, 1.f));
+		vertices[i].uv = units[i] * rect.size + rect.pos;
+		vertices[i].color = color;
+	}
+}

@@ -5,8 +5,9 @@
 class Pipe
 {
 public:
-	static const int PipeWidth = 40;
-	static const int PipeHeight = 40;
+	static constexpr int PipeWidth = 40;
+	static constexpr int PipeHeight = 40;
+	static constexpr glm::vec2 Size = glm::vec2(PipeWidth, PipeHeight);
 
 	enum Direction
 	{
