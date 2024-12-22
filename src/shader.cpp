@@ -1,4 +1,4 @@
-#include <cassert>
+#include <iostream>
 
 #include <GL/glew.h>
 #include <glm/gtc/type_ptr.hpp>
@@ -7,61 +7,131 @@
 #include "shader.hpp"
 #include "utility.hpp"
 
-ShaderUniform::ShaderUniform(int location)
-	: mLocation(location)
+void
+ShaderUniform::setFloat(GLfloat value) const noexcept
 {
-	assert(location >= 0);
+	glCheck(glUniform1f(mLocation, value));
 }
 
 void
-ShaderUniform::set(const glm::mat4 &matrix)
+ShaderUniform::setFloat1fv(const GLfloat *floats, size_t size) const noexcept
 {
-	glCheck(glUniformMatrix4fv(
-			mLocation,
-			1,
-			GL_FALSE,
-			glm::value_ptr(matrix)));
+	glCheck(glUniform1fv(mLocation, size, floats));
 }
 
 void
-ShaderUniform::set(int value)
+ShaderUniform::setInteger(GLint value) const noexcept
 {
 	glCheck(glUniform1i(mLocation, value));
 }
 
-Shader::Shader()
-	: mProgram(0)
+void
+ShaderUniform::setInteger1iv(const GLint *ints, size_t size) const noexcept
 {
-}
-
-Shader::~Shader()
-{
-	if (mProgram)
-	{
-		glDeleteProgram(mProgram);
-	}
+	glCheck(glUniform1iv(mLocation, size, ints));
 }
 
 void
-Shader::attach(const std::string &source, ShaderType shaderType)
+ShaderUniform::setVector2f(GLfloat x, GLfloat y) const noexcept
+{
+	glCheck(glUniform2f(mLocation, x, y));
+}
+
+void
+ShaderUniform::setVector2f(const glm::vec2 &value) const noexcept
+{
+	glCheck(glUniform2fv(mLocation, 1, glm::value_ptr(value)));
+}
+
+void
+ShaderUniform::setVector2fv(const GLfloat floats[][2], size_t size) const noexcept
+{
+	glCheck(glUniform2fv(mLocation, size, floats[0]));
+}
+
+void
+ShaderUniform::setVector3f(GLfloat x, GLfloat y, GLfloat z) const noexcept
+{
+	glCheck(glUniform3f(mLocation, x, y, z));
+}
+
+void
+ShaderUniform::setVector3f(const glm::vec3 &value) const noexcept
+{
+	glCheck(glUniform3fv(mLocation, 1, glm::value_ptr(value)));
+}
+
+void
+ShaderUniform::setVector3fv(const GLfloat floats[][3], size_t size) const noexcept
+{
+	glCheck(glUniform3fv(mLocation, size, floats[0]));
+}
+
+void
+ShaderUniform::setVector4f(GLfloat x, GLfloat y, GLfloat z, GLfloat w) const noexcept
+{
+	glCheck(glUniform4f(mLocation, x, y, z, w));
+}
+
+void
+ShaderUniform::setVector4f(const glm::vec4 &value) const noexcept
+{
+	glCheck(glUniform4fv(mLocation, 1, glm::value_ptr(value)));
+}
+
+void
+ShaderUniform::setVector4fv(const GLfloat floats[][4], size_t size) const noexcept
+{
+	glCheck(glUniform4fv(mLocation, size, floats[0]));
+}
+
+void
+ShaderUniform::setMatrix4(const glm::mat4 &value) const noexcept
+{
+	glCheck(glUniformMatrix4fv(mLocation, 1, GL_FALSE, glm::value_ptr(value)));
+}
+
+void
+Shader::create()
 {
 	if (!mProgram)
 	{
 		mProgram = glCreateProgram();
 	}
+}
 
-	GLenum glType;
-	switch (shaderType)
+void
+Shader::destroy()
+{
+	if (mProgram)
 	{
-	case ShaderType::Vertex: glType = GL_VERTEX_SHADER; break;
-	case ShaderType::Fragment: glType = GL_FRAGMENT_SHADER; break;
-	case ShaderType::Geometry: glType = GL_GEOMETRY_SHADER; break;
-	case ShaderType::Compute: glType = GL_COMPUTE_SHADER; break;
-	default:
-		throw std::runtime_error("Unknown shader type");
+		glCheck(glDeleteProgram(mProgram));
+	}
+}
+
+bool
+Shader::attachString(Shader::Type type, const std::string &source) const noexcept
+{
+	if (!mProgram)
+	{
+		std::cerr << "Shader::attachString() - undefined program\n";
+		return false;
 	}
 
-	unsigned shader = glCreateShader(glType);
+	GLenum glType;
+	switch (type)
+	{
+	case Type::Vertex: glType = GL_VERTEX_SHADER; break;
+	case Type::Fragment: glType = GL_FRAGMENT_SHADER; break;
+	case Type::Geometry: glType = GL_GEOMETRY_SHADER; break;
+	case Type::Compute: glType = GL_COMPUTE_SHADER; break;
+	default:
+		std::cerr << "Shader::attachString() - undefined shader type"
+		          << static_cast<int>(type) << "\n";
+		return false;
+	}
+
+	GLuint shader = glCreateShader(glType);
 	const char *src = source.c_str();
 	glCheck(glShaderSource(shader, 1, &src, nullptr));
 	glCheck(glCompileShader(shader));
@@ -75,21 +145,25 @@ Shader::attach(const std::string &source, ShaderType shaderType)
 		std::string message(length, 0);
 		glCheck(glGetShaderInfoLog(shader, length, nullptr, message.data()));
 		glCheck(glDeleteShader(shader));
-		throw std::runtime_error(message);
+		std::cerr << "Shader::attachSTring() - compilation failed\n"
+		          << message << "\n";
+		glCheck(glDeleteShader(shader));
+		return false;
 	}
 
 	glCheck(glAttachShader(mProgram, shader));
 	glCheck(glDeleteShader(shader));
+	return true;
 }
 
-void
-Shader::attachFile(const std::filesystem::path &filename, ShaderType shaderType)
+bool
+Shader::attachFile(Type type, const std::filesystem::path &filename) const noexcept
 {
-	attach(Utility::loadFile(filename), shaderType);
+	return attachString(type, Utility::loadFile(filename));
 }
 
-void
-Shader::link()
+bool
+Shader::link() const noexcept
 {
 	glCheck(glLinkProgram(mProgram));
 
@@ -101,8 +175,11 @@ Shader::link()
 		glCheck(glGetProgramiv(mProgram, GL_INFO_LOG_LENGTH, &length));
 		std::string message(length, 0);
 		glCheck(glGetProgramInfoLog(mProgram, length, nullptr, message.data()));
-		throw std::runtime_error(message);
+		std::cerr << "Shader::link() - link failed\n"
+		          << message << "\n";
+		return false;
 	}
+	return true;
 }
 
 ShaderUniform
@@ -117,7 +194,7 @@ Shader::getUniform(const std::string &name) const
 }
 
 void
-Shader::bind(const Shader *shader)
+Shader::bind() const
 {
-	glUseProgram(shader ? shader->mProgram : 0);
+	glCheck(glUseProgram(mProgram));
 }
