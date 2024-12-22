@@ -289,16 +289,8 @@ Texture::setSmooth(bool smooth)
 }
 
 void
-Texture::bind(const Texture *texture, int textureUnit) noexcept
+Texture::bind(int textureUnit) const noexcept
 {
-	if (texture)
-	{
-		glCheck(glActiveTexture(GL_TEXTURE0 + textureUnit));
-		glCheck(glBindTexture(GL_TEXTURE_2D, texture->mTexture));
-	}
-	else
-	{
-		glCheck(glActiveTexture(GL_TEXTURE0 + textureUnit));
-		glCheck(glBindTexture(GL_TEXTURE_2D, 0));
-	}
+	glCheck(glActiveTexture(GL_TEXTURE0 + textureUnit));
+	glCheck(glBindTexture(GL_TEXTURE_2D, mTexture));
 }
