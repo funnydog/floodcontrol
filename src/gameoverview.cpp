@@ -46,9 +46,6 @@ GameOverView::handleEvent(const Event &event)
 void
 GameOverView::render(RenderTarget &target)
 {
-	mFont.draw(target,
-		   gameOverLocation,
-		   "G A M E  O V E R !",
-		   Color::Yellow);
+	target.draw("G A M E  O V E R !", gameOverLocation, mFont, Color::Yellow);
 	target.draw();
 }

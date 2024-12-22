@@ -77,11 +77,6 @@ PauseView::render(RenderTarget &target)
 	// message
 	const std::string message = "GAME PAUSED";
 
-	mFont.draw(
-		target,
-		(winSize - mFont.getSize(message)) * 0.5f,
-		message,
-		Color::White);
-
+	target.draw(message, (winSize - mFont.getSize(message)) * 0.5f, mFont, Color::White);
 	target.draw();
 }

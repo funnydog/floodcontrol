@@ -179,18 +179,10 @@ GameView::render(RenderTarget &target)
 
 	// level
 	auto &font = mContext.fonts->get(FontID::Pericles36);
-	font.draw(
-		target,
-		LevelPosition,
-		std::to_string(mCurrentLevel),
-		Color::Black);
+	target.draw(std::to_string(mCurrentLevel), LevelPosition, font, Color::Black);
 
 	// points
-	font.draw(
-		target,
-		ScorePosition,
-		std::to_string(mPlayerScore),
-		Color::Black);
+	target.draw(std::to_string(mPlayerScore), ScorePosition, font, Color::Black);
 
 	// scorezoom
         auto winCenter = glm::vec3(mContext.window->getSize(), 0.f) * 0.5f;
@@ -205,7 +197,7 @@ GameView::render(RenderTarget &target)
 					winCenter),
 				glm::vec3(scale, scale, 1.f)),
 			glm::vec3(textSize * -0.5f, 0.f));
-		font.draw(target, mat4, scoreZoom.text, scoreZoom.drawColor);
+		target.draw(scoreZoom.text, mat4, font, scoreZoom.drawColor);
 	}
 
 	// flood

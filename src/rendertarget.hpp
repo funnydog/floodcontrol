@@ -10,6 +10,7 @@
 #include "camera.hpp"
 
 class Canvas;
+class Font;
 class Window;
 
 class RenderTarget
@@ -95,6 +96,9 @@ public:
 	 * @param[in] window Window to use as a drawing backend.
 	 */
 	void use(const Window &window);
+
+	void draw(const std::string &text, glm::vec2 pos, Font &font, Color color);
+	void draw(const std::string &text, const glm::mat4 &transform, Font &font, Color color);
 
 protected:
 	void initialize();

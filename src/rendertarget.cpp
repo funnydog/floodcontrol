@@ -1,12 +1,25 @@
 #include <iostream>
 #include <cassert>
+#include <codecvt>
 
 #include <GL/glew.h>
 
 #include "color.hpp"
+#include "font.hpp"
 #include "glcheck.hpp"
 #include "rendertarget.hpp"
 #include "window.hpp"
+
+namespace
+{
+static const std::uint16_t indices[] = { 0, 1, 2, 1, 3, 2 };
+static const glm::vec2 units[] = {
+	{ 0.f, 0.f },
+	{ 0.f, 1.f },
+	{ 1.f, 0.f },
+	{ 1.f, 1.f },
+};
+}
 
 RenderTarget::RenderTarget()
 	: mIsBatching(false)
@@ -310,4 +323,79 @@ RenderTarget::getVertexArray(unsigned vtxCount)
 	auto size = mVertices.size();
 	mVertices.resize(size + vtxCount);
 	return &mVertices[size];
+}
+
+void
+RenderTarget::draw(const std::string &text, glm::vec2 pos, Font &font, Color color)
+{
+	if (text.empty())
+	{
+		return;
+	}
+
+	std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> cv;
+	for (auto codepoint : cv.from_bytes(text))
+	{
+		font.getGlyph(codepoint);
+	}
+
+	setTexture(&font.getTexture());
+	pos.y += font.getLineHeight();
+	for (auto codepoint : cv.from_bytes(text))
+	{
+		unsigned base = getPrimIndex(6, 4);
+		addIndices(base, indices+0, indices+6);
+		Vertex *vertices = getVertexArray(4);
+
+		const auto &glyph = font.getGlyph(codepoint);
+		pos.x += glyph.bearing.x;
+		pos.y -= glyph.bearing.y;
+		for (int i = 0; i < 4; i++)
+		{
+			vertices[i].pos = glyph.size * units[i] + pos;
+			vertices[i].uv = glyph.uvSize * units[i] + glyph.uvPos;
+			vertices[i].color = color;
+		}
+		pos.x += glyph.advance - glyph.bearing.x;
+		pos.y += glyph.bearing.y;
+	}
+}
+
+void
+RenderTarget::draw(const std::string &text, const glm::mat4 &transform, Font &font, Color color)
+{
+	if (text.empty())
+	{
+		return;
+	}
+
+	std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> cv;
+	for (auto codepoint : cv.from_bytes(text))
+	{
+		font.getGlyph(codepoint);
+	}
+
+	setTexture(&font.getTexture());
+
+	glm::vec2 pos(0.f);
+	pos.y += font.getLineHeight();
+	for (auto codepoint : cv.from_bytes(text))
+	{
+		unsigned base = getPrimIndex(6, 4);
+		addIndices(base, indices+0, indices+6);
+		Vertex *vertices = getVertexArray(4);
+
+		const auto &glyph = font.getGlyph(codepoint);
+		pos.x += glyph.bearing.x;
+		pos.y -= glyph.bearing.y;
+		for (int i = 0; i < 4; i++)
+		{
+			vertices[i].pos = glm::vec2(
+				transform * glm::vec4(glyph.size * units[i] + pos, 0.f, 1.f));
+			vertices[i].uv = glyph.uvSize * units[i] + glyph.uvPos;
+			vertices[i].color = color;
+		}
+		pos.x += glyph.advance - glyph.bearing.x;
+		pos.y += glyph.bearing.y;
+	}
 }
