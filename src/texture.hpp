@@ -9,24 +9,16 @@
 class Texture
 {
 public:
-	Texture();
-	~Texture();
-
-	Texture(const Texture &other) = delete;
-	Texture& operator=(const Texture &other) = delete;
-
-	Texture(Texture &&other) noexcept;
-	Texture& operator=(Texture &&other) noexcept;
+	bool loadFromFile(const std::filesystem::path &path);
 
 	bool create(unsigned width, unsigned height,
-		    const void *pixels=nullptr,
-	            bool repeat=false, bool smooth=false);
+	            const void *pixels=nullptr, bool repeat=false, bool smooth=true);
+
+	void destroy();
 
 	void update(const void *pixels);
 	void update(const void *pixels, unsigned x, unsigned y, unsigned w, unsigned h);
 	void update(const Texture &other, unsigned x = 0, unsigned y = 0);
-
-	bool loadFromFile(const std::filesystem::path &path);
 
 	glm::vec2 getSize() const;
 
@@ -39,8 +31,9 @@ public:
 	bool isSmooth() const;
 	void setSmooth(bool smooth);
 
+	void bind() const;
 	void bind(int textureUnit) const noexcept;
 
 private:
-	unsigned mTexture;
+	unsigned mTexture = -1U;
 };

@@ -109,6 +109,10 @@ Window::setContext(Window *window)
 		throw std::runtime_error(
 			reinterpret_cast<const char *>(glewGetErrorString(err)));
 	}
+	if (!GLEW_ARB_texture_storage)
+	{
+		throw std::runtime_error("ARB_texture_storage required!");
+	}
 }
 
 GLFWwindow*

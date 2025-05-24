@@ -7,32 +7,6 @@
 #include "texture.hpp"
 #include "stb_image.h"
 
-Texture::Texture()
-	: mTexture(0)
-{
-}
-
-Texture::~Texture()
-{
-	if (mTexture)
-	{
-		glCheck(glDeleteTextures(1, &mTexture));
-	}
-}
-
-Texture::Texture(Texture &&other) noexcept
-	: mTexture(0)
-{
-	std::swap(mTexture, other.mTexture);
-}
-
-Texture&
-Texture::operator=(Texture &&other) noexcept
-{
-	std::swap(mTexture, other.mTexture);
-	return *this;
-}
-
 bool
 Texture::create(unsigned width, unsigned height, const void *pixels, bool repeat, bool smooth)
 {
@@ -43,29 +17,12 @@ Texture::create(unsigned width, unsigned height, const void *pixels, bool repeat
 		return false;
 	}
 
-	// TODO: check for NPOT support and max size support
-	if (!mTexture)
+	if (mTexture == -1U)
 	{
 		glCheck(glGenTextures(1, &mTexture));
-		if (!mTexture)
-		{
-			std::cerr << "Failed to create the texture." << std::endl;
-			return false;
-		}
 	}
 
 	glCheck(glBindTexture(GL_TEXTURE_2D, mTexture));
-	glCheck(glTexImage2D(
-			GL_TEXTURE_2D,
-			0,
-			GL_RGBA,
-			static_cast<GLsizei>(width),
-			static_cast<GLsizei>(height),
-			0,
-			GL_RGBA,
-			GL_UNSIGNED_BYTE,
-			pixels));
-
 	GLint parameter = repeat ? GL_REPEAT : GL_CLAMP_TO_EDGE;
 	glCheck(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, parameter));
 	glCheck(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, parameter));
@@ -74,7 +31,25 @@ Texture::create(unsigned width, unsigned height, const void *pixels, bool repeat
 	glCheck(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, parameter));
 	glCheck(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, parameter));
 
+	glCheck(glTexStorage2D(GL_TEXTURE_2D, 1, GL_RGBA8, width, height));
+	if (pixels)
+	{
+		glCheck(glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
+		                        static_cast<GLsizei>(width),
+		                        static_cast<GLsizei>(height),
+		                        GL_RGBA, GL_UNSIGNED_BYTE, pixels));
+	}
 	return true;
+}
+
+void
+Texture::destroy()
+{
+	if (mTexture != -1U)
+	{
+		glCheck(glDeleteTextures(1, &mTexture));
+		mTexture = -1U;
+	}
 }
 
 void
@@ -89,7 +64,7 @@ Texture::update(const void *pixels, unsigned x, unsigned y, unsigned w, unsigned
 	assert(x + w <= getWidth() && "Destination x coordinate is outside of the texture");
 	assert(y + h <= getHeight() && "Destination y coordinate is outside of the texture");
 
-	if (pixels == nullptr || mTexture == 0)
+	if (pixels == nullptr || mTexture == -1U)
 	{
 		return;
 	}
@@ -121,7 +96,7 @@ Texture::update(const Texture &other, unsigned x, unsigned y)
 	assert(y + srcHeight <= dstHeight
 	       && "Destination y coordinate is outside of the texture");
 
-	if (!mTexture || !other.mTexture)
+	if (mTexture == -1U || other.mTexture == -1U)
 	{
 		return;
 	}
@@ -195,7 +170,7 @@ glm::vec2
 Texture::getSize() const
 {
 	glm::vec2 size(0);
-	if (mTexture)
+	if (mTexture != -1U)
 	{
 		GLint width, height;
 		glCheck(glBindTexture(GL_TEXTURE_2D, mTexture));
@@ -212,11 +187,10 @@ unsigned
 Texture::getWidth() const
 {
 	GLint width = 0;
-	if (mTexture)
+	if (mTexture != -1U)
 	{
 		glCheck(glBindTexture(GL_TEXTURE_2D, mTexture));
 		glCheck(glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &width));
-		glCheck(glBindTexture(GL_TEXTURE_2D, 0));
 	}
 	return width;
 }
@@ -225,11 +199,10 @@ unsigned
 Texture::getHeight() const
 {
 	GLint height = 0;
-	if (mTexture)
+	if (mTexture != -1U)
 	{
 		glCheck(glBindTexture(GL_TEXTURE_2D, mTexture));
 		glCheck(glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &height));
-		glCheck(glBindTexture(GL_TEXTURE_2D, 0));
 	}
 	return height;
 }
@@ -237,22 +210,19 @@ Texture::getHeight() const
 bool
 Texture::isRepeated() const
 {
-	if (!mTexture)
+	GLint glWrapping = GL_CLAMP_TO_EDGE;
+	if (mTexture != -1U)
 	{
-		return false;
+		glCheck(glBindTexture(GL_TEXTURE_2D, mTexture));
+		glCheck(glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, &glWrapping));
 	}
-
-	GLint glWrapping;
-	glCheck(glBindTexture(GL_TEXTURE_2D, mTexture));
-	glCheck(glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, &glWrapping));
-	glCheck(glBindTexture(GL_TEXTURE_2D, 0));
 	return glWrapping == GL_REPEAT;
 }
 
 void
 Texture::setRepeated(bool repeated)
 {
-	assert(mTexture && "Texture not created");
+	assert(mTexture != -1U && "Texture not created");
 
 	GLint glWrapping = repeated ? GL_REPEAT : GL_CLAMP_TO_EDGE;
 	glCheck(glBindTexture(GL_TEXTURE_2D, mTexture));
@@ -264,28 +234,31 @@ Texture::setRepeated(bool repeated)
 bool
 Texture::isSmooth() const
 {
-	if (!mTexture)
+	GLint glFiltering = GL_NEAREST;
+	if (mTexture != -1U)
 	{
-		return false;
+		glCheck(glBindTexture(GL_TEXTURE_2D, mTexture));
+		glCheck(glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, &glFiltering));
 	}
-
-	GLint glFiltering;
-	glCheck(glBindTexture(GL_TEXTURE_2D, mTexture));
-	glCheck(glGetTexParameteriv(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, &glFiltering));
-	glCheck(glBindTexture(GL_TEXTURE_2D, 0));
 	return glFiltering == GL_LINEAR;
 }
 
 void
 Texture::setSmooth(bool smooth)
 {
-	assert(mTexture && "Texture not created");
+	assert(mTexture != -1U && "Texture not created");
 
 	GLint glFiltering = smooth ? GL_LINEAR : GL_NEAREST;
 	glCheck(glBindTexture(GL_TEXTURE_2D, mTexture));
 	glCheck(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, glFiltering));
 	glCheck(glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, glFiltering));
 	glCheck(glBindTexture(GL_TEXTURE_2D, 0));
+}
+
+void
+Texture::bind() const
+{
+	glCheck(glBindTexture(GL_TEXTURE_2D, mTexture));
 }
 
 void
