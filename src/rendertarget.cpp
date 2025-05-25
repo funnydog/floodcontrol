@@ -52,7 +52,7 @@ RenderTarget::~RenderTarget()
 }
 
 void
-RenderTarget::use(const Window &window)
+RenderTarget::create()
 {
 	mWhiteTexture.create(1, 1, &Color::White);
 	mShader.create();
@@ -63,13 +63,7 @@ RenderTarget::use(const Window &window)
 		throw std::runtime_error("RenderTarget::use() - shader error");
 	}
 
-	glm::vec2 size = window.getSize();
-	mDefaultCamera.setCenter(size * 0.5f);
-	mDefaultCamera.setSize(size);
-	mCamera = mDefaultCamera;
-
 	mShader.use();
-	mShader.getUniform("projection").setMatrix4(mCamera.getTransform());
 	mShader.getUniform("image").setInteger(0);
 
 	glCheck(glEnable(GL_CULL_FACE));
@@ -97,6 +91,28 @@ RenderTarget::use(const Window &window)
 			2, 4, GL_UNSIGNED_BYTE, GL_TRUE, sizeof(Vertex),
 			reinterpret_cast<GLvoid*>(offsetof(Vertex, color))));
 	glCheck(glBindVertexArray(0));
+}
+
+void
+RenderTarget::destroy()
+{
+	mShader.destroy();
+	glCheck(glBindVertexArray(0));
+	glCheck(glDeleteVertexArrays(1, &mVAO));
+	glCheck(glDeleteBuffers(1, &mEBO));
+	glCheck(glDeleteBuffers(1, &mVBO));
+}
+
+void
+RenderTarget::use(const Window &window)
+{
+	glm::vec2 size = window.getSize();
+	mDefaultCamera.setCenter(size * 0.5f);
+	mDefaultCamera.setSize(size);
+	mCamera = mDefaultCamera;
+
+	mShader.use();
+	mShader.getUniform("projection").setMatrix4(mCamera.getTransform());
 }
 
 const Camera&

@@ -37,6 +37,7 @@ Application::Application()
 	mEventQueue.track(mWindow);
 
 	// tell the target to render on the window
+	mTarget.create();
 	mTarget.use(mWindow);
 
 	// with a context in use we load the assets
@@ -52,6 +53,7 @@ Application::Application()
 Application::~Application()
 {
 	mTextures.destroy();
+	mTarget.destroy();
 	glfwTerminate();
 }
 

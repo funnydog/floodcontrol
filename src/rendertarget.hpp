@@ -24,6 +24,9 @@ public:
 	RenderTarget& operator=(const RenderTarget &) = delete;
 	RenderTarget& operator=(RenderTarget &&) noexcept = delete;
 
+	void create();
+	void destroy();
+
 	/**
 	 * Get the Camera associated with the RenderTarget.
 	 */
