@@ -138,7 +138,7 @@ Texture::update(const Texture &other, unsigned x, unsigned y)
 
 	glCheck(glBlitFramebuffer(
 			0, 0, srcWidth, srcHeight,
-			x, y, x + srcWidth, x + srcHeight,
+			x, y, x + srcWidth, y + srcHeight,
 			GL_COLOR_BUFFER_BIT,
 			GL_NEAREST));
 
