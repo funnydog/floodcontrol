@@ -1,6 +1,5 @@
 #include <iostream>
 #include <cassert>
-#include <codecvt>
 
 #include <GL/glew.h>
 
@@ -8,6 +7,7 @@
 #include "font.hpp"
 #include "glcheck.hpp"
 #include "rendertarget.hpp"
+#include "utility.hpp"
 #include "window.hpp"
 
 namespace
@@ -239,15 +239,15 @@ RenderTarget::draw(const std::string &text, glm::vec2 pos, Font &font, Color col
 		return;
 	}
 
-	std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> cv;
-	for (auto codepoint : cv.from_bytes(text))
+	auto codepoints = Utility::decodeUTF8(text);
+	for (auto codepoint : codepoints)
 	{
 		font.getGlyph(codepoint);
 	}
 
 	setTexture(&font.getTexture());
 	pos.y += font.getLineHeight();
-	for (auto codepoint : cv.from_bytes(text))
+	for (auto codepoint : codepoints)
 	{
 		reserve(4, indices);
 
@@ -275,8 +275,8 @@ RenderTarget::draw(const std::string &text, const glm::mat4 &transform, Font &fo
 		return;
 	}
 
-	std::wstring_convert<std::codecvt_utf8<char32_t>, char32_t> cv;
-	for (auto codepoint : cv.from_bytes(text))
+	auto codepoints = Utility::decodeUTF8(text);
+	for (auto codepoint : codepoints)
 	{
 		font.getGlyph(codepoint);
 	}
@@ -285,7 +285,7 @@ RenderTarget::draw(const std::string &text, const glm::mat4 &transform, Font &fo
 
 	glm::vec2 pos(0.f);
 	pos.y += font.getLineHeight();
-	for (auto codepoint : cv.from_bytes(text))
+	for (auto codepoint : codepoints)
 	{
 		reserve(4, indices);
 		const auto &glyph = font.getGlyph(codepoint);
